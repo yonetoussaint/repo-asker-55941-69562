@@ -121,8 +121,15 @@ export function useMessages(conversationId: string | null, currentUserId: string
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
-        (payload) => {
+        async (payload) => {
           console.log('New message received via real-time:', payload);
+          
+          // Fetch sender profile for the new message
+          const { data: senderProfile } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .eq('id', payload.new.sender_id)
+            .single();
           
           setMessages((current) => {
             // Check if message already exists to prevent duplicates
@@ -137,7 +144,7 @@ export function useMessages(conversationId: string | null, currentUserId: string
               );
             }
             
-            // Add new message
+            // Add new message with sender profile
             console.log('Adding new message from real-time:', payload.new.id);
             const newMessage: Message = {
               id: payload.new.id,
@@ -146,6 +153,11 @@ export function useMessages(conversationId: string | null, currentUserId: string
               content: payload.new.content,
               created_at: payload.new.created_at,
               is_read: payload.new.is_read,
+              sender: senderProfile ? {
+                id: senderProfile.id,
+                full_name: senderProfile.full_name || 'Unknown',
+                avatar_url: senderProfile.avatar_url,
+              } : undefined,
             };
             
             return [...current, newMessage];
